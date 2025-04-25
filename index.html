@@ -2,44 +2,51 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Master Strategist — Rule-Based Diagnosis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Master Strategist — Knowledge‑Based Diagnosis</title>
   <style>
-    body { font-family:sans-serif; background:#f5f5f5; padding:20px; }
-    .stage { background:#fff; padding:20px; margin:20px auto; max-width:600px; border-radius:8px; }
-    h2 { margin-top:0; }
-    textarea, button { width:100%; margin:10px 0; }
-    .output { white-space:pre-wrap; background:#eef; padding:10px; border-radius:4px; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .stage { background: white; padding: 2rem; margin: 1rem auto; max-width: 700px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h2 { margin-top: 0; }
+    select, textarea, button { width: 100%; margin: 0.75rem 0; padding: 0.75rem; border-radius: 4px; border: 1px solid #ccc; }
+    button { background: #0078D7; color: white; border: none; cursor: pointer; }
+    .hidden { display: none; }
+    .output { white-space: pre-wrap; background: #eef2f5; padding: 1rem; border-radius: 4px; }
   </style>
 </head>
 <body>
 
-  <div class="stage" id="stage1">
-    <h2>1. Describe Your Problem</h2>
-    <textarea id="userProblem" rows="4" placeholder="E.g. “I feel exhausted and can’t focus at work.”"></textarea>
-    <button onclick="runDiagnosis()">Diagnose</button>
+  <!-- Stage 1: Diagnosis -->
+  <div id="stage1" class="stage">
+    <h2>1. Diagnosis</h2>
+    <p>Describe your personal problem below:</p>
+    <textarea id="userProblem" rows="3" placeholder="E.g. 'I feel exhausted and can't focus at work.'"></textarea>
+    <button id="btnDiagnose">Diagnose</button>
     <div id="diagnosisOutput" class="output"></div>
   </div>
 
-  <div class="stage hidden" id="stage2">
+  <!-- Stage 2: Guiding Policy -->
+  <div id="stage2" class="stage hidden">
     <h2>2. Guiding Policy</h2>
     <div id="policyOutput" class="output"></div>
-    <button onclick="runPolicy()">→ Next: Coherent Actions</button>
+    <button id="btnPolicyNext">Next: Coherent Actions</button>
   </div>
 
-  <div class="stage hidden" id="stage3">
+  <!-- Stage 3: Coherent Actions -->
+  <div id="stage3" class="stage hidden">
     <h2>3. Coherent Actions</h2>
     <div id="actionsOutput" class="output"></div>
-    <button onclick="runActions()">→ Next: Strategy Simulation</button>
+    <button id="btnActionsNext">Next: Strategy Simulation</button>
   </div>
 
-  <div class="stage hidden" id="stage4">
+  <!-- Stage 4: Strategy Simulation -->
+  <div id="stage4" class="stage hidden">
     <h2>4. Strategy Simulation</h2>
     <div id="simulationOutput" class="output"></div>
   </div>
 
   <script>
-    // 1) Define your rule-based categories:
+    // Knowledge-based rule maps
     const RULES = {
       "Relationship": ["breakup","conflict","partner","divorce","lonely"],
       "Work Stress": ["boss","burnout","deadline","overwork","promotion"],
@@ -48,84 +55,108 @@
       "Health & Energy": ["tired","exhausted","sleep","diet","exercise"]
     };
 
+    const policyMap = {
+      "Relationship": "Improve communication and empathy to resolve interpersonal conflicts.",
+      "Work Stress": "Prioritize tasks, negotiate workload, and schedule regular breaks to reduce burnout.",
+      "Life Purpose": "Clarify core values and set actionable goals to align daily actions with long-term purpose.",
+      "Self-Worth": "Engage in self-reflection and affirmations to build confidence and resilience.",
+      "Health & Energy": "Establish healthy sleep, nutrition, and exercise habits to boost well-being."
+    };
+
+    const actionMap = {
+      "Relationship": [
+        "Schedule a calm conversation to share feelings.",
+        "Set mutual boundaries and expectations.",
+        "Plan regular quality time together."
+      ],
+      "Work Stress": [
+        "List and prioritize tasks by impact.",
+        "Discuss workload with your manager.",
+        "Block brief breaks in your calendar daily."
+      ],
+      "Life Purpose": [
+        "Write down personal values and passions.",
+        "Set a small weekly goal aligned with purpose.",
+        "Reflect on progress every weekend."
+      ],
+      "Self-Worth": [
+        "Identify and challenge negative self-talk.",
+        "List three personal achievements daily.",
+        "Seek supportive feedback from a friend."
+      ],
+      "Health & Energy": [
+        "Go to bed 30 minutes earlier each night.",
+        "Add one serving of vegetables per meal.",
+        "Take a 15-minute walk after lunch."
+      ]
+    };
+
+    const simulationMap = {
+      "Schedule a calm conversation to share feelings.": "This will reduce misunderstandings and improve mutual understanding.",
+      "Set mutual boundaries and expectations.": "Clear boundaries will prevent future conflicts and build trust.",
+      "Plan regular quality time together.": "Shared activities will strengthen your bond and communication.",
+      "List and prioritize tasks by impact.": "Focusing on high-impact tasks will boost productivity and reduce stress.",
+      "Discuss workload with your manager.": "Open discussion can lead to adjusted expectations and support.",
+      "Block brief breaks in your calendar daily.": "Scheduled breaks improve focus and prevent burnout.",
+      "Write down personal values and passions.": "Clarity will guide your decisions toward meaningful activities.",
+      "Set a small weekly goal aligned with purpose.": "Achieving small goals builds momentum and motivation.",
+      "Reflect on progress every weekend.": "Reflection helps you stay on track and adjust plans effectively.",
+      "Identify and challenge negative self-talk.": "Challenging thoughts boosts self-esteem and resilience.",
+      "List three personal achievements daily.": "Recognizing wins fosters a positive self-image.",
+      "Seek supportive feedback from a friend.": "External support reinforces confidence and growth.",
+      "Go to bed 30 minutes earlier each night.": "Extra sleep improves mood and cognitive function.",
+      "Add one serving of vegetables per meal.": "Better nutrition increases energy and health.",
+      "Take a 15-minute walk after lunch.": "Physical activity boosts alertness and well-being."
+    };
+
+    // State
     let diagnosisData, policyData, actionsData;
 
-    // Utility to show/hide stages
-    function showStage(n) {
-      [1,2,3,4].forEach(i => {
-        document.getElementById(`stage${i}`)
-                .classList.toggle("hidden", i!==n);
-      });
+    // Helper to show one stage
+    function showStage(num) {
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById('stage'+i).classList.toggle('hidden', i!==num);
+      }
     }
 
     // Stage 1: Diagnosis
-    function runDiagnosis() {
-      const text = document.getElementById("userProblem").value.toLowerCase();
-      let category = "Unclassified";
-      for (let [cat, keys] of Object.entries(RULES)) {
-        if (keys.some(k => text.includes(k))) {
-          category = cat;
-          break;
-        }
+    document.getElementById('btnDiagnose').onclick = () => {
+      const text = document.getElementById('userProblem').value.toLowerCase();
+      let category = 'Unclassified';
+      for (const [cat, keys] of Object.entries(RULES)) {
+        if (keys.some(k => text.includes(k))) { category = cat; break; }
       }
-      const aspects = RULES[category] 
-        ? RULES[category].slice(0,3).join(", ") 
-        : "needs further analysis";
-      const insight = `Focus on key drivers of '${category}' and review similar scenarios.`;
+      const aspects = RULES[category]?.slice(0,3).join(', ') || 'further analysis needed';
+      const insight = `Key focus: ${aspects}`;
       diagnosisData = { text, category, aspects, insight };
-      document.getElementById("diagnosisOutput").innerText =
+      document.getElementById('diagnosisOutput').innerText =
         `Category: ${category}\nAspects: ${aspects}\nInsight: ${insight}`;
+
+      // Prepare Guiding Policy
+      const policy = policyMap[category] || 'Develop a custom strategy based on identified aspects.';
+      policyData = { policy };
+      document.getElementById('policyOutput').innerText = policy;
+
       showStage(2);
-    }
+    };
 
-    // Stage 2: Guiding Policy
-    function runPolicy() {
-      policyData = {
-        policy: `Use strengths in ${diagnosisData.aspects} to tackle '${diagnosisData.category}'.`
-      };
-      document.getElementById("policyOutput").innerText = policyData.policy;
+    // Stage 2 -> Stage 3: Coherent Actions
+    document.getElementById('btnPolicyNext').onclick = () => {
+      const key = diagnosisData.category;
+      actionsData = actionMap[key] || [policyData.policy];
+      document.getElementById('actionsOutput').innerText =
+        actionsData.map((a,i) => `${i+1}. ${a}`).join('\n');
       showStage(3);
-    }
+    };
 
-    // Stage 3: Coherent Actions
-    function runActions() {
-      const steps = policyData.policy
-        .split(".")
-        .map(s => s.trim())
-        .filter(Boolean);
-      actionsData = steps;
-      document.getElementById("actionsOutput").innerText = steps
-        .map((s,i) => `${i+1}. ${s}`)
-        .join("\n");
+    // Stage 3 -> Stage 4: Simulation
+    document.getElementById('btnActionsNext').onclick = () => {
+      const simText = actionsData
+        .map(a => `Action: ${a}\nResult: ${simulationMap[a] || 'Outcome uncertain.'}`)
+        .join('\n\n');
+      document.getElementById('simulationOutput').innerText = simText;
       showStage(4);
-    }
-
-    // Stage 4: Strategy Simulation
-    function runActions() {
-      // (oops — overwritten by next) 
-    }
-    function runActions(){} // placeholder
-
-    function runActions(){} // we’ll fix below
-
-    function runActions(){} // remove
-
-    // Sorry— typo. Here's Stage 4:
-    function runActions(){} // dummy
-
-    // Actually:
-    function runSimulation() {
-      const sim = actionsData
-        .map((a,i) => `Action ${i+1}: ${a}\nOutcome: ${Math.round(Math.random()*50+50)}% success`)
-        .join("\n\n");
-      document.getElementById("simulationOutput").innerText = sim;
-    }
-    document.getElementById("btnActionsNext")
-            .addEventListener("click", runSimulation);
+    };
   </script>
 </body>
 </html>
-
-
-
-
